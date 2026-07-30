@@ -9,7 +9,7 @@
     <description>Low-latency three-way HNW onboarding pipeline combining Vodafone Open Gateway, OpenAI WebRTC, and Azure PSTN links.</description>
     
     <!-- Restrict loading execution vectors to supported container runtimes -->
-    <minServerVersion>4.7.4</minServerVersion>
+    <minServerVersion>5.0.1</minServerVersion>
     <licenseType>internal</licenseType>
 
     <!-- 
