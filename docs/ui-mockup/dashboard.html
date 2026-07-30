@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valerius Advisor Desktop - Compliance Control</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+    <header>
+        <div class="session-meta">
+            <span class="session-title">Onboarding Pipeline: Alexander Vance</span>
+            <span class="timer" id="sessionTimer">00:14:32</span>
+        </div>
+        <div class="audio-controls">
+            <span class="monitor-badge">● LIVE AUDIT STREAM</span>
+            <button class="btn-intervene" id="interveneBtn">▶ UNMUTE & INTERVENE</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-header">Identity Verification (Network L0)</div>
+            <div class="panel-body">
+                <div class="telemetry-item">
+                    <div class="telemetry-label">Network API Core</div>
+                    <div class="telemetry-val">Vodafone UK Open Gateway</div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">SIM Swap / Binding Check</div>
+                    <div class="telemetry-val"><span class="badge-status badge-clean">ORIGINAL / SECURE</span></div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">Automated AML Risk Scan</div>
+                    <div class="telemetry-val"><span class="badge-status badge-flag">PEP MATCH FLAG (⚠)</span></div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">Est. Location (Cell Tower)</div>
+                    <div class="telemetry-val">Greater London, UK</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">Dynamic Client Profile (Real-Time Ingestion)</div>
+            <div class="panel-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Legal Full Name</label>
+                        <input type="text" id="formName" value="Alexander Vance">
+                    </div>
+                    <div class="form-group">
+                        <label>Verified MSISDN</label>
+                        <input type="text" id="formPhone" value="+44 7700 900077">
+                    </div>
+                    <div class="form-group">
+                        <label>Stated Source of Wealth</label>
+                        <input type="text" id="formSource" value="Tech Corporate Liquidation Assets">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Liquidity For Custody</label>
+                        <input type="text" id="formNetWorth" value="£14,500,000">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>AI Structured Onboarding Notes Summary</label>
+                        <textarea id="formNotes" rows="4">Client confirmed funds derived directly from third-quarter corporate liquidation events matching UK registered entity structures.</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">S2S Real-Time Transcript Telemetry</div>
+            <div class="panel-body" id="transcriptBody">
+                <div class="transcript-container">
+                    <div class="transcript-row">
+                        <span class="ts-time">[14:10]</span><span class="ts-speaker ai">AI:</span><span>Could you confirm the original source of the liquid capital for this investment portfolio?</span>
+                    </div>
+                    <div class="transcript-row">
+                        <span class="ts-time">[14:22]</span><span class="ts-speaker client">CLIENT:</span><span>Yes, it comes from the sale of my shares following the corporate liquidation of UK Energy Corp last quarter.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">Compliance Matrix Copilot (EDD)</div>
+            <div class="panel-body">
+                <div class="edd-alert-box">
+                    <strong>Enhanced Due Diligence Trigger:</strong> PEP database match hit on "Alexander Vance" (Director, UK Energy Corp).
+                    <div class="script-box">
+                        "Alexander, I notice your recent corporate position at UK Energy Corp. Could you confirm if you continue to hold an executive role or political exposure there?"
+                    </div>
+                </div>
+                <div class="action-row">
+                    <button class="btn-action btn-approve">Resolve & Clear Flag</button>
+                    <button class="btn-log">Log Exception to Auditor</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

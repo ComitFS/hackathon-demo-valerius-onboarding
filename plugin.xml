@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+    <!-- Core Administrative Metadata Descriptor Nodes -->
+    <class>com.valerius.wealth.openfire.OpenAIOnboardingPlugin</class>
+    <name>Valerius Smart Onboarding Engine</name>
+    <version>1.0.0</version>
+    <date>30/07/2026</date>
+    <author>Valerius Wealth Engineering Team</author>
+    <description>Low-latency three-way HNW onboarding pipeline combining Vodafone Open Gateway, OpenAI WebRTC, and Azure PSTN links.</description>
+    
+    <!-- Restrict loading execution vectors to supported container runtimes -->
+    <minServerVersion>4.7.4</minServerVersion>
+    <licenseType>internal</licenseType>
+
+    <!-- 
+      CRITICAL BINDING RULE: This exposes your front-end assets (HTML, CSS, JS) 
+      directly via Openfire's internal Jetty web context server root.
+      Your client UI maps to:    http://localhost:7070/plugins/onboarding/client.html
+      Your dashboard UI maps to: http://localhost:7070/plugins/onboarding/dashboard.html
+    -->
+    <web_elements>
+        <web_directory>web</web_directory>
+    </web_elements>
+	
+    <adminconsole>
+        <tab id="tab-server">
+            <sidebar id="sidebar-server-settings">
+                <item id="valerius-settings-tab" 
+                      name="Valerius Onboarding Config" 
+                      description="Edit secret variables for OpenAI, Azure, and Vodafone API gateways." 
+                      url="valerius-config.jsp" />
+            </sidebar>
+        </tab>
+    </adminconsole>	
+</plugin>

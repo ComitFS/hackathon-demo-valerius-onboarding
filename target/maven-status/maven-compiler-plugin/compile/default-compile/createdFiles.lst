@@ -1,0 +1,5 @@
+com\valerius\wealth\openfire\OpenAIOnboardingPlugin.class
+com\valerius\wealth\openfire\SessionMetadataHandler.class
+com\valerius\wealth\openfire\ACSTokenServlet.class
+com\valerius\wealth\openfire\OpenAISessionServlet.class
+com\valerius\wealth\openfire\VodaRetrieveServlet.class

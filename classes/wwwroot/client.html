@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valerius Wealth Management - Secure Mobile Session</title>
+    <link rel="stylesheet" href="client.css">
+    <!-- Load structural WebRTC and external vendor logic engines framework hooks -->
+    <script src="https://cloudflare.com"></script>
+    <script src="https://unpkg.com"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">[V] VALERIUS</div>
+        <div class="security-badge">🔒 SECURE S2S</div>
+    </header>
+    <main>
+        <div class="client-info">
+            <h1>Onboarding Portal</h1>
+            <p>Private Wealth Instant Verification Engine</p>
+        </div>
+        
+            <div class="status-dot" style="background:#F59E0B"></div>
+            <div>Awaiting network binding validation...</div>
+        </div>
+        <div class="call-matrix">
+            <div class="avatar-box">
+                <div class="avatar" id="aiAvatar">🤖</div>
+                <div class="state-label">Digital Partner: <span id="aiState">Disconnected</span></div>
+            </div>
+            <div class="matrix-connector"></div>
+            <div class="avatar-box">
+                <div class="avatar" id="humanAvatar">👔</div>
+                <div class="state-label">Lead Adviser: <span id="humanState">PSTN Offline</span></div>
+            </div>
+            <div class="audio-wave"><div class="audio-wave-fill" id="audioIndicator" style="width:0%"></div></div>
+        </div>
+    </main>
+    <footer>
+        <button class="btn btn-secondary" style="background:#D4AF37; color:#000;" onclick="runSilentVodafoneDiscovery()">🚀 Establish Secure Session</button>
+    </footer>
+    <script src="client.js"></script>
+</body>
+</html>

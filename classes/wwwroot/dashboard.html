@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Valerius Advisor Desktop - Compliance Control</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cloudflare.com"></script>
+</head>
+<body>
+    <header>
+        <div class="session-meta">
+            <span class="session-title">Onboarding Pipeline: Alexander Vance</span>
+            <span class="timer">00:14:32</span>
+        </div>
+        <div class="audio-controls">
+            <span class="monitor-badge">● LIVE AUDIT STREAM</span>
+            <button class="btn-action" style="background:#334155; color:white; margin-left:10px" onclick="resetDashboard()">🔄 Reset Environment</button>
+        </div>
+    </header>
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-header">Identity Validation</div>
+            <div class="panel-body">
+                <div class="telemetry-item"><div class="telemetry-label">SIM Swap Binding Status</div><div class="badge-status badge-clean">ORIGINAL / SECURE</div></div>
+                <div class="telemetry-item"><div class="telemetry-label">Automated AML Scan</div><div class="badge-status badge-flag" id="amlFlag">PEP MATCH FLAG (⚠)</div></div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">Dynamic Client Profile Form</div>
+            <div class="panel-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Full Name</label><input type="text" id="formName"></div>
+                    <div class="form-group"><label>Verified Phone</label><input type="text" id="formPhone"></div>
+                    <div class="form-group"><label>Source of Wealth</label><input type="text" id="formSource"></div>
+                    <div class="form-group"><label>Target Liquidity</label><input type="text" id="formNetWorth"></div>
+                    <div class="form-group full-width"><label>AI Summary Notes</label><textarea id="formNotes" rows="4"></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">S2S Transcript Stream</div>
+            <div class="panel-body transcript-container" id="transcripts"></div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">Compliance Matrix Copilot (EDD)</div>
+            <div class="panel-body">
+                <div class="edd-alert-box"><strong>EDD Prompt Integration Context:</strong> Verify recent corporate non-executive director roles.</div>
+            </div>
+        </div>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html>
