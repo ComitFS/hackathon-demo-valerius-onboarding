@@ -1,0 +1,26 @@
+{
+    "short_name": "valerius",
+    "name": "Valerius Wealth Management",
+    "version": "1.0",	
+    "categories": ["finacial"],	
+    "description": "Secure Mobile Session demonstartor for Valerius Wealth Management",    
+    "icons": [
+        {
+            "src": "./client.png",
+            "sizes": "32x32",
+            "type": "image/png",
+			"purpose": "any maskable"			
+        },
+        {
+            "src": "./client-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "start_url": "./client.html",
+    "scope": "./",	
+    "background_color": "#FFFFFF",
+    "theme_color": "#FFFFFF",
+    "display": "standalone",
+    "orientation": "portrait"
+}

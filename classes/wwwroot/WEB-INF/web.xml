@@ -4,4 +4,34 @@
          xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
          version="3.1">            
 
+
+	<servlet>
+		<servlet-name>openAiServlet</servlet-name>
+		<servlet-class>com.valerius.wealth.openfire.OpenAISessionServlet</servlet-class>
+	</servlet>		
+
+    <servlet-mapping>
+        <servlet-name>openAiServlet</servlet-name>
+        <url-pattern>/session</url-pattern>
+    </servlet-mapping>   
+
+	<servlet>
+		<servlet-name>acsServlet</servlet-name>
+		<servlet-class>com.valerius.wealth.openfire.ACSTokenServlet</servlet-class>
+	</servlet>		
+
+    <servlet-mapping>
+        <servlet-name>acsServlet</servlet-name>
+        <url-pattern>/acs-token</url-pattern>
+    </servlet-mapping> 
+
+	<servlet>
+		<servlet-name>vodaServlet</servlet-name>
+		<servlet-class>com.valerius.wealth.openfire.VodaRetrieveServlet</servlet-class>
+	</servlet>		
+
+    <servlet-mapping>
+        <servlet-name>vodaServlet</servlet-name>
+        <url-pattern>/voda-retrieve</url-pattern>
+    </servlet-mapping> 	
 </web-app>

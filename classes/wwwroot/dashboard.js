@@ -1,16 +1,19 @@
-let openfireHost = window.location.host || "localhost:7070";
+let openfireHost = window.location.host;
 let dbConn = null;
 const PUBSUB_SERVICE = 'pubsub.' + openfireHost.split(':')[0];
 const SESSION_NODE = 'onboarding_session_alexander_vance';
 
 window.onload = () => {
-    dbConn = new Strophe.Connection(`http://${openfireHost}/http-bind/`);
-    dbConn.connect("advisor_console@localhost", "password", (status) => {
+    dbConn = new Strophe.Connection(`${window.location.protocol}//${openfireHost}/http-bind/`);
+    dbConn.connect("dele@localhost", "Welcome123", (status) => {
         if (status === Strophe.Status.CONNECTED) {
-            dbConn.send($iq({ type: 'set', to: PUBSUB_SERVICE }).c('pubsub', { xmlns: 'http://jabber.org' })
-                .c('subscribe', { node: SESSION_NODE, jid: dbConn.jid }));
+            dbConn.send($pres());						
+            dbConn.send($iq({ type: 'set', to: PUBSUB_SERVICE }).c('pubsub', { xmlns: 'http://jabber.org' }).c('subscribe', { node: SESSION_NODE, jid: dbConn.jid }));
+
             dbConn.addHandler((stanza) => {
+				console.debug("message.handler", stanza);
                 let items = stanza.getElementsByTagName('entry');
+				
                 if (items.length > 0) {
                     let frame = JSON.parse(items[0].textContent);
                     if (frame.type === "TRANSCRIPT") updateTranscripts(frame);

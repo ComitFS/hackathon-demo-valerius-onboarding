@@ -3,6 +3,7 @@ package com.valerius.wealth.openfire;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.jivesoftware.openfire.http.HttpBindManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.container.PluginManager;
@@ -37,22 +38,13 @@ public class OpenAIOnboardingPlugin implements Plugin, ProcessListener {
     @Override
     public void initializePlugin(PluginManager manager, File pluginDir) {
         try {		
-			 // 1. Inject custom IQ tracking router logic to listen for network state updates
 			iqHandler = new SessionMetadataHandler();		
 			XMPPServer.getInstance().getIQRouter().addHandler(iqHandler);
 			
-			// 2. Map servlets securely right inside Openfire's native Jetty router context		
-			ContextHandlerCollection contexts = ((AdminConsolePlugin)XMPPServer.getInstance().getPluginManager().getPluginByCanonicalName("admin").orElseThrow()).getContexts();
-			context = new WebAppContext(null, pluginDir.getPath() + "/classes/wwwroot", "/valerius-web");
+			context = new WebAppContext(null, pluginDir.getPath() + "/classes/wwwroot", "/");
 			context.setClassLoader(this.getClass().getClassLoader());
-			contexts.addHandler(context);
+			HttpBindManager.getInstance().addJettyHandler(context);	
 			context.setWelcomeFiles(new String[]{"index.html"});
-			context.start();
-			
-			AuthCheckFilter.addExclude("valerius/app/*");	
-			AuthCheckFilter.addExclude("valerius/session");			
-			AuthCheckFilter.addExclude("valerius/acs-token");	
-			AuthCheckFilter.addExclude("valerius/voda-retrieve");
 			
 			setupNgrok(pluginDir);			
 			
@@ -65,14 +57,11 @@ public class OpenAIOnboardingPlugin implements Plugin, ProcessListener {
 
     @Override
     public void destroyPlugin() {
-        try {		
-			if (context != null && context.isStarted()) context.stop();	
-			if (ngrokThread != null) 					ngrokThread.destory();	
+        try {
+			HttpBindManager.getInstance().removeJettyHandler(context);			
 			
-			AuthCheckFilter.removeExclude("valerius/app/*");	
-			AuthCheckFilter.removeExclude("valerius/session");	
-			AuthCheckFilter.removeExclude("valerius/acs-token");	
-			AuthCheckFilter.removeExclude("valerius/voda-retrieve");	
+			if (ngrokThread != null) ngrokThread.destory();	
+			
 			XMPPServer.getInstance().getIQRouter().removeHandler(iqHandler);
         }
         catch (Exception e) {
@@ -220,7 +209,7 @@ public class OpenAIOnboardingPlugin implements Plugin, ProcessListener {
 				String token = JiveGlobals.getProperty("casvoice.ngrok.token", "1ui9nGp4BP0hiz1uqSEzx0HotLg_7QzTVWVrBbJmeR3fczAgS");
 				Spawn.startProcess(ngrok + " authtoken " + token, new File(path), this);
 				
-				String cmdLine = ngrok + " http " + JiveGlobals.getXMLProperty("adminConsole.port", 9090) + " --url " + JiveGlobals.getProperty("casvoice.ngrok.url", "https://certain-sole-rational.ngrok-free.app");			
+				String cmdLine = ngrok + " http " + JiveGlobals.getProperty("httpbind.port.plain", "7070") + " --url " + JiveGlobals.getProperty("casvoice.ngrok.url", "https://certain-sole-rational.ngrok-free.app");			
 				String ngrokDomain = JiveGlobals.getProperty("casvoice.ngrok.domain", null);
 				
 				if (!isNull(ngrokDomain)) {

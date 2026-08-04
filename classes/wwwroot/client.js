@@ -1,4 +1,4 @@
-let openfireHost = window.location.host || "localhost:7070";
+let openfireHost = window.location.host;
 let pc = null; let dataChannel = null; let xmppConnection = null;
 let clientMicStream = null; let openAiRemoteStream = null;
 const PUBSUB_SERVICE = 'pubsub.' + openfireHost.split(':')[0];
@@ -31,8 +31,8 @@ async function runSilentVodafoneDiscovery() {
 }
 
 function connectToOpenfireXmpp(msisdn) {
-    xmppConnection = new Strophe.Connection(`http://${openfireHost}/http-bind/`);
-    xmppConnection.connect("client_vance@localhost", "password", (status) => {
+    xmppConnection = new Strophe.Connection(`${window.location.protocol}//${openfireHost}/http-bind/`);
+    xmppConnection.connect("localhost", null, (status) => {
         if (status === Strophe.Status.CONNECTED) {
             saveNumberToSessionContext(msisdn);
             broadcastPayload({ type: "FORM_UPDATE", data: { formPhone: msisdn } });
