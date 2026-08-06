@@ -21,9 +21,9 @@
             <h1>Onboarding Portal</h1>
             <p>Private Wealth Instant Verification Engine</p>
         </div>
-        
-            <div class="status-dot" style="background:#F59E0B"></div>
-            <div>Awaiting network binding validation...</div>
+        <div>
+            <span class="status-dot" style="background:#F59E0B; display: inline-block;"></span>
+            <span id="identityStatus">Awaiting network binding validation...</span>
         </div>
         <div class="call-matrix">
             <div class="avatar-box">
@@ -41,6 +41,7 @@
     <footer>
         <button class="btn btn-secondary" style="background:#D4AF37; color:#000;" onclick="runSilentVodafoneDiscovery()">🚀 Establish Secure Session</button>
     </footer>
+    <script src="strophe.min.js"></script>	
     <script src="client.js"></script>
 </body>
 </html>

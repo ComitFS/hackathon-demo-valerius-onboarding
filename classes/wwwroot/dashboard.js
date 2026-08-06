@@ -3,6 +3,11 @@ let dbConn = null;
 const PUBSUB_SERVICE = 'pubsub.' + openfireHost.split(':')[0];
 const SESSION_NODE = 'onboarding_session_alexander_vance';
 
+window.onbeforeunload = function(event)
+{
+	if (dbConn) dbConn.disconnect();
+};
+
 window.onload = () => {
     dbConn = new Strophe.Connection(`${window.location.protocol}//${openfireHost}/http-bind/`);
     dbConn.connect("dele@localhost", "Welcome123", (status) => {
