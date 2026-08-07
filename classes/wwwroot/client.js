@@ -4,10 +4,11 @@ let localStream  = null;
 let dataChannel = null;
 let xmppConnection = null, clientPreVerifiedMetadata;
 let clientMicStream = null; let openAiRemoteStream = null;
+let agent = null; let agentCall = null;
 
 const PUBSUB_SERVICE = 'pubsub.localhost'; // + openfireHost.split(':')[0];
 const SESSION_NODE = 'onboarding_session_alexander_vance';
-const HARDCODED_MSISDN = '+447700900077';
+const HARDCODED_MSISDN = '+447825589457';
 
 const ARIA_SYSTEM_PROMPT = `
 # IDENTITY & AUDIENCE
@@ -301,6 +302,8 @@ async function postJson(path, payload) {
 
 function closeConnections() {
 	if (xmppConnection) xmppConnection.disconnect();
+	
+	if (agentCall) agentCall.hangup();
 
 	// A. Stop all local microphone / camera media tracks immediately
 	if (clientMicStream) {
@@ -361,7 +364,7 @@ async function runSilentVodafoneDiscovery(webauthnAuthenticated = false, overrid
             method: "POST", body: JSON.stringify({ token: operatorToken })
         });
         let verifyRes = await verifyReq.json();
-        let msisdn = verifyRes.phoneNumber || "+44 7700 900077";
+        let msisdn = verifyRes.phoneNumber || "+447825589457";
 		*/
 		
 		let msisdn = overrideMsisdn || HARDCODED_MSISDN;
@@ -395,8 +398,8 @@ function connectToOpenfireXmpp(msisdn) {
 	
     xmppConnection.connect("localhost", null, (status) => {
         if (status === Strophe.Status.CONNECTED) {
-            xmppConnection.send($pres());				
-            initOpenAiRealtimeConnection();
+            xmppConnection.send($pres());
+			dialHumanFaPstn("+442071006525");		
             saveNumberToSessionContext(msisdn);
             broadcastPayload({ type: "FORM_UPDATE", data: { formPhone: msisdn } });			
         }
@@ -410,6 +413,39 @@ function saveNumberToSessionContext(msisdn) {
         .c("session", { xmlns: "http://valerius.wealth" })
         .c("identity").c("msisdn").t(msisdn);
     xmppConnection.send(iq);
+}
+
+
+async function dialHumanFaPstn(targetNumber) {
+	console.debug("dialHumanFaPstn", targetNumber);
+	
+    let acsReq = await fetch(`${window.location.protocol}//${openfireHost}/acs-token`);
+    let acsRes = await acsReq.json();
+    
+	/*
+    let ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let mSrc = ctx.createMediaStreamSource(clientMicStream);
+    let oSrc = ctx.createMediaStreamSource(openAiRemoteStream);
+    let dest = ctx.createMediaStreamDestination();
+    
+    mSrc.connect(dest); oSrc.connect(dest); oSrc.connect(ctx.destination); // Route stream outputs cleanly
+	*/
+	
+    const callClient = new ACS.CallClient();
+    const cred = new ACS.AzureCommunicationTokenCredential(acsRes.token);
+    agent = await callClient.createCallAgent(cred);
+	agentCall = agent.startCall([{ phoneNumber: targetNumber}],  { alternateCallerId: { phoneNumber: "+441908067713" }, muted: false });
+
+	/*
+    let acsTrack = dest.stream.getAudioTracks()[0];
+    let acsStream = new ACS.LocalAudioStream(acsTrack);    
+    agent.startCall([{ phoneNumber: targetNumber }], { audioOptions: { localAudioStreams: [acsStream] } });
+	*/
+	
+    document.getElementById('humanState').innerText = "Connected via PSTN";
+    document.getElementById('humanAvatar').classList.add('active');
+	
+	// initOpenAiRealtimeConnection();
 }
 
 async function initOpenAiRealtimeConnection() {
@@ -429,7 +465,6 @@ async function initOpenAiRealtimeConnection() {
         document.getElementById('aiState').innerText = 'Speaking...';
         document.getElementById('aiAvatar').classList.add('active');
 		audioElement.srcObject = e.streams[0];
-        //dialHumanFaPstn("+447700900000"); // Trigger dynamic ACS PSTN call route mapping
     };
 
     clientMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -557,28 +592,4 @@ function broadcastPayload(data) {
     );
     const pub = $iq({ type: 'set', to: PUBSUB_SERVICE }).c('pubsub', { xmlns: 'http://jabber.org' }).c('publish', { node: SESSION_NODE }).child(item);
     xmppConnection.send(pub);
-}
-
-async function dialHumanFaPstn(targetNumber) {
-	console.debug("dialHumanFaPstn", targetNumber);
-	
-    let acsReq = await fetch(`${window.location.protocol}//${openfireHost}/acs-token`);
-    let acsRes = await acsReq.json();
-    
-    let ctx = new (window.AudioContext || window.webkitAudioContext)();
-    let mSrc = ctx.createMediaStreamSource(clientMicStream);
-    let oSrc = ctx.createMediaStreamSource(openAiRemoteStream);
-    let dest = ctx.createMediaStreamDestination();
-    
-    mSrc.connect(dest); oSrc.connect(dest); oSrc.connect(ctx.destination); // Route stream outputs cleanly
-
-    const callClient = new AzureCommunicationCalling.CallClient();
-    const cred = new AzureCommunicationCalling.AzureCommunicationTokenCredential(acsRes.token);
-    let agent = await callClient.createCallAgent(cred);
-    let acsTrack = dest.stream.getAudioTracks()[0];
-    let acsStream = new AzureCommunicationCalling.LocalAudioStream(acsTrack);
-    
-    agent.startCall([{ phoneNumber: targetNumber }], { audioOptions: { localAudioStreams: [acsStream] } });
-    document.getElementById('humanState').innerText = "Connected via PSTN";
-    document.getElementById('humanAvatar').classList.add('active');
 }
