@@ -47,6 +47,7 @@ public class WebAuthnServlet extends HttpServlet {
     private static final long STATE_TTL_MILLIS = 2 * 60 * 1000L;
 
     private static final Map<String, Map<String, StoredCredential>> CREDENTIALS_BY_MSISDN = new ConcurrentHashMap<>();
+    private static final Map<String, ByteArray> USER_HANDLES_BY_MSISDN = new ConcurrentHashMap<>();
     private static final Map<String, RegistrationState> REGISTRATION_STATES = new ConcurrentHashMap<>();
     private static final Map<String, AssertionState> ASSERTION_STATES = new ConcurrentHashMap<>();
 
@@ -105,10 +106,12 @@ public class WebAuthnServlet extends HttpServlet {
         }
 
         RelyingParty relyingParty = buildRelyingParty(req);
+        ByteArray userHandle = USER_HANDLES_BY_MSISDN.computeIfAbsent(msisdn,
+                key -> new ByteArray(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
         UserIdentity userIdentity = UserIdentity.builder()
                 .name(msisdn)
                 .displayName(body.optString("displayName", msisdn))
-                .id(new ByteArray(msisdn.getBytes(StandardCharsets.UTF_8)))
+                .id(userHandle)
                 .build();
 
         PublicKeyCredentialCreationOptions options = relyingParty.startRegistration(
@@ -121,7 +124,7 @@ public class WebAuthnServlet extends HttpServlet {
         );
 
         String requestId = UUID.randomUUID().toString();
-        REGISTRATION_STATES.put(requestId, new RegistrationState(msisdn, options, currentRpOrigin(req)));
+        REGISTRATION_STATES.put(requestId, new RegistrationState(msisdn, options, currentRpOrigin(req), userHandle));
 
         String responseJson = "{"
                 + "\"requestId\":\"" + jsonEscape(requestId) + "\"," 
@@ -165,7 +168,7 @@ public class WebAuthnServlet extends HttpServlet {
 
         StoredCredential stored = new StoredCredential(
                 state.msisdn,
-                credential.getResponse().getUserHandle().orElse(new ByteArray(state.msisdn.getBytes(StandardCharsets.UTF_8))),
+                state.userHandle,
                 result.getKeyId().getId(),
                 result.getPublicKeyCose(),
                 result.getSignatureCount(),
@@ -302,7 +305,16 @@ public class WebAuthnServlet extends HttpServlet {
 
     private boolean isTrustedProxyRequest(HttpServletRequest req) {
         String remoteAddr = req.getRemoteAddr();
-        return "127.0.0.1".equals(remoteAddr) || "::1".equals(remoteAddr);
+        String configured = org.jivesoftware.util.JiveGlobals.getProperty(
+                "valerius.webauthn.trustedProxies",
+                "127.0.0.1,::1"
+        );
+        for (String candidate : configured.split(",")) {
+            if (remoteAddr.equals(candidate.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private JSONObject readBody(HttpServletRequest req) throws IOException {
@@ -450,12 +462,14 @@ public class WebAuthnServlet extends HttpServlet {
         private final String msisdn;
         private final PublicKeyCredentialCreationOptions options;
         private final String origin;
+        private final ByteArray userHandle;
         private final long createdAt;
 
-        private RegistrationState(String msisdn, PublicKeyCredentialCreationOptions options, String origin) {
+        private RegistrationState(String msisdn, PublicKeyCredentialCreationOptions options, String origin, ByteArray userHandle) {
             this.msisdn = msisdn;
             this.options = options;
             this.origin = origin;
+            this.userHandle = userHandle;
             this.createdAt = System.currentTimeMillis();
         }
     }
