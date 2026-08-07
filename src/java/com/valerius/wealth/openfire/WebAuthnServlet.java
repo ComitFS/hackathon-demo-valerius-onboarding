@@ -164,10 +164,16 @@ public class WebAuthnServlet extends HttpServlet {
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential =
                 PublicKeyCredential.parseRegistrationResponseJson(credentialJson);
 
-        RegistrationResult result = relyingParty.finishRegistration(FinishRegistrationOptions.builder()
-                .request(state.options)
-                .response(credential)
-                .build());
+        RegistrationResult result;
+        try {
+            result = relyingParty.finishRegistration(FinishRegistrationOptions.builder()
+                    .request(state.options)
+                    .response(credential)
+                    .build());
+        } catch (com.yubico.webauthn.exception.RegistrationFailedException e) {
+            writeJson(resp, HttpServletResponse.SC_BAD_REQUEST, "{\"error\":\"Registration failed: " + e.getMessage() + "\"}");
+            return;
+        }
 
         StoredCredential stored = new StoredCredential(
                 state.msisdn,
@@ -240,10 +246,16 @@ public class WebAuthnServlet extends HttpServlet {
         PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> credential =
                 PublicKeyCredential.parseAssertionResponseJson(credentialJson);
 
-        AssertionResult result = relyingParty.finishAssertion(FinishAssertionOptions.builder()
-                .request(state.request)
-                .response(credential)
-                .build());
+        AssertionResult result;
+        try {
+            result = relyingParty.finishAssertion(FinishAssertionOptions.builder()
+                    .request(state.request)
+                    .response(credential)
+                    .build());
+        } catch (com.yubico.webauthn.exception.AssertionFailedException e) {
+            writeJson(resp, HttpServletResponse.SC_UNAUTHORIZED, "{\"authenticated\":false}");
+            return;
+        }
 
         if (!result.isSuccess()) {
             writeJson(resp, HttpServletResponse.SC_UNAUTHORIZED, "{\"authenticated\":false}");
