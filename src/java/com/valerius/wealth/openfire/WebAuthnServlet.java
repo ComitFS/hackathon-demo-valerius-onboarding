@@ -171,7 +171,7 @@ public class WebAuthnServlet extends HttpServlet {
                     .response(credential)
                     .build());
         } catch (com.yubico.webauthn.exception.RegistrationFailedException e) {
-            writeJson(resp, HttpServletResponse.SC_BAD_REQUEST, "{\"error\":\"Registration failed: " + e.getMessage() + "\"}");
+            writeJson(resp, HttpServletResponse.SC_BAD_REQUEST, "{\"error\":\"Registration failed\"}");
             return;
         }
 
