@@ -73,6 +73,11 @@
             <artifactId>webauthn-server-core</artifactId>
             <version>2.7.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-cbor</artifactId>
+            <version>2.18.4</version>
+        </dependency>
     </dependencies>
 
     <repositories>
