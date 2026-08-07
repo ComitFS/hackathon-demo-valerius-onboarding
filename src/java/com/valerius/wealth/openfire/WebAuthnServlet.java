@@ -175,7 +175,7 @@ public class WebAuthnServlet extends HttpServlet {
                 result.getKeyId().getId(),
                 result.getPublicKeyCose(),
                 result.getSignatureCount(),
-                result.getKeyId().getTransports().orElse(Collections.emptySet())
+                result.getKeyId().getTransports().orElse(Collections.emptySortedSet())
         );
 
         putCredential(state.msisdn, stored);
