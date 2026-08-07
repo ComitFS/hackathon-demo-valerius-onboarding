@@ -170,11 +170,20 @@ async function registerPasskey(msisdn) {
 }
 
 function parseCreationOptions(optionsJson) {
+    const normalizedOptionsJson = normalizePublicKeyOptions(optionsJson);
+
     if (window.PublicKeyCredential.parseCreationOptionsFromJSON) {
-        return window.PublicKeyCredential.parseCreationOptionsFromJSON(optionsJson);
+        try {
+            return window.PublicKeyCredential.parseCreationOptionsFromJSON(normalizedOptionsJson);
+        } catch (error) {
+            console.warn('parseCreationOptionsFromJSON failed, falling back to manual decode', error);
+        }
     }
 
-    const options = clone(optionsJson);
+    const options = clone(normalizedOptionsJson);
+    if (!options?.challenge || !options?.user?.id) {
+        throw new Error('Invalid WebAuthn registration options');
+    }
     options.challenge = base64UrlToBuffer(options.challenge);
     options.user.id = base64UrlToBuffer(options.user.id);
     options.excludeCredentials = (options.excludeCredentials || []).map((cred) => ({
@@ -185,17 +194,33 @@ function parseCreationOptions(optionsJson) {
 }
 
 function parseRequestOptions(optionsJson) {
+    const normalizedOptionsJson = normalizePublicKeyOptions(optionsJson);
+
     if (window.PublicKeyCredential.parseRequestOptionsFromJSON) {
-        return window.PublicKeyCredential.parseRequestOptionsFromJSON(optionsJson);
+        try {
+            return window.PublicKeyCredential.parseRequestOptionsFromJSON(normalizedOptionsJson);
+        } catch (error) {
+            console.warn('parseRequestOptionsFromJSON failed, falling back to manual decode', error);
+        }
     }
 
-    const options = clone(optionsJson);
+    const options = clone(normalizedOptionsJson);
+    if (!options?.challenge) {
+        throw new Error('Invalid WebAuthn authentication options');
+    }
     options.challenge = base64UrlToBuffer(options.challenge);
     options.allowCredentials = (options.allowCredentials || []).map((cred) => ({
         ...cred,
         id: base64UrlToBuffer(cred.id)
     }));
     return options;
+}
+
+function normalizePublicKeyOptions(optionsJson) {
+    if (optionsJson?.publicKey && typeof optionsJson.publicKey === 'object') {
+        return optionsJson.publicKey;
+    }
+    return optionsJson;
 }
 
 function credentialToJson(credential) {
