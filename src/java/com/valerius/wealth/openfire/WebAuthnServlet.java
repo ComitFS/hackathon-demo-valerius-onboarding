@@ -10,7 +10,10 @@ import com.yubico.webauthn.RelyingParty;
 import com.yubico.webauthn.StartAssertionOptions;
 import com.yubico.webauthn.StartRegistrationOptions;
 import com.yubico.webauthn.CredentialRepository;
+import com.yubico.webauthn.data.AuthenticatorAssertionResponse;
+import com.yubico.webauthn.data.AuthenticatorAttestationResponse;
 import com.yubico.webauthn.data.AuthenticatorSelectionCriteria;
+import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.ClientAssertionExtensionOutputs;
 import com.yubico.webauthn.data.ClientRegistrationExtensionOutputs;
@@ -30,7 +33,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -42,19 +44,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebAuthnServlet extends HttpServlet {
     private static final Logger Log = LoggerFactory.getLogger(WebAuthnServlet.class);
 
-    private static final Map<String, StoredCredential> CREDENTIALS_BY_MSISDN = new ConcurrentHashMap<>();
+    private static final long STATE_TTL_MILLIS = 2 * 60 * 1000L;
+
+    private static final Map<String, Map<String, StoredCredential>> CREDENTIALS_BY_MSISDN = new ConcurrentHashMap<>();
     private static final Map<String, RegistrationState> REGISTRATION_STATES = new ConcurrentHashMap<>();
     private static final Map<String, AssertionState> ASSERTION_STATES = new ConcurrentHashMap<>();
 
     @Override
     protected void doOptions(HttpServletRequest req, HttpServletResponse resp) {
-        applyCommonHeaders(resp);
+        applyCommonHeaders(req, resp);
         resp.setStatus(HttpServletResponse.SC_OK);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        applyCommonHeaders(resp);
+        applyCommonHeaders(req, resp);
+        cleanupExpiredStates();
 
         if (!isHttps(req)) {
             writeJson(resp, HttpServletResponse.SC_BAD_REQUEST, "{\"error\":\"WebAuthn requires HTTPS\"}");
@@ -167,7 +172,7 @@ public class WebAuthnServlet extends HttpServlet {
                 result.getKeyId().getTransports().orElse(Collections.emptySet())
         );
 
-        CREDENTIALS_BY_MSISDN.put(state.msisdn, stored);
+        putCredential(state.msisdn, stored);
 
         writeJson(resp, HttpServletResponse.SC_OK, "{\"registered\":true}");
     }
@@ -181,7 +186,7 @@ public class WebAuthnServlet extends HttpServlet {
             return;
         }
 
-        if (!CREDENTIALS_BY_MSISDN.containsKey(msisdn)) {
+        if (!hasCredentials(msisdn)) {
             writeJson(resp, HttpServletResponse.SC_OK, "{\"requiresRegistration\":true}");
             return;
         }
@@ -239,8 +244,8 @@ public class WebAuthnServlet extends HttpServlet {
             return;
         }
 
-        StoredCredential stored = CREDENTIALS_BY_MSISDN.get(state.msisdn);
-        if (stored != null && result.getCredential().isPresent()) {
+        StoredCredential stored = findCredential(state.msisdn, credential.getId());
+        if (stored != null) {
             StoredCredential updated = new StoredCredential(
                     stored.msisdn,
                     stored.userHandle,
@@ -249,7 +254,7 @@ public class WebAuthnServlet extends HttpServlet {
                     result.getSignatureCount(),
                     stored.transports
             );
-            CREDENTIALS_BY_MSISDN.put(state.msisdn, updated);
+            putCredential(state.msisdn, updated);
         }
 
         writeJson(resp, HttpServletResponse.SC_OK, "{\"authenticated\":true}");
@@ -267,7 +272,7 @@ public class WebAuthnServlet extends HttpServlet {
     }
 
     private boolean isHttps(HttpServletRequest req) {
-        String forwardedProto = req.getHeader("X-Forwarded-Proto");
+        String forwardedProto = trustedForwardedProto(req);
         if (forwardedProto != null && "https".equalsIgnoreCase(forwardedProto)) {
             return true;
         }
@@ -275,7 +280,7 @@ public class WebAuthnServlet extends HttpServlet {
     }
 
     private String currentRpOrigin(HttpServletRequest req) {
-        String forwardedProto = req.getHeader("X-Forwarded-Proto");
+        String forwardedProto = trustedForwardedProto(req);
         String scheme = (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : req.getScheme();
         String host = req.getHeader("Host");
         if (host == null || host.trim().isEmpty()) {
@@ -288,6 +293,18 @@ public class WebAuthnServlet extends HttpServlet {
         return scheme + "://" + host;
     }
 
+    private String trustedForwardedProto(HttpServletRequest req) {
+        if (!isTrustedProxyRequest(req)) {
+            return null;
+        }
+        return req.getHeader("X-Forwarded-Proto");
+    }
+
+    private boolean isTrustedProxyRequest(HttpServletRequest req) {
+        String remoteAddr = req.getRemoteAddr();
+        return "127.0.0.1".equals(remoteAddr) || "::1".equals(remoteAddr);
+    }
+
     private JSONObject readBody(HttpServletRequest req) throws IOException {
         String payload = new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         if (payload.trim().isEmpty()) {
@@ -296,8 +313,9 @@ public class WebAuthnServlet extends HttpServlet {
         return JSONObject.fromObject(payload);
     }
 
-    private void applyCommonHeaders(HttpServletResponse resp) {
-        resp.setHeader("Access-Control-Allow-Origin", "*");
+    private void applyCommonHeaders(HttpServletRequest req, HttpServletResponse resp) {
+        resp.setHeader("Access-Control-Allow-Origin", currentRpOrigin(req));
+        resp.setHeader("Vary", "Origin");
         resp.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         resp.setHeader("Access-Control-Allow-Headers", "Content-Type");
         resp.setContentType("application/json");
@@ -312,33 +330,63 @@ public class WebAuthnServlet extends HttpServlet {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
+    private void cleanupExpiredStates() {
+        long now = System.currentTimeMillis();
+        REGISTRATION_STATES.entrySet().removeIf(entry -> (now - entry.getValue().createdAt) > STATE_TTL_MILLIS);
+        ASSERTION_STATES.entrySet().removeIf(entry -> (now - entry.getValue().createdAt) > STATE_TTL_MILLIS);
+    }
+
+    private void putCredential(String msisdn, StoredCredential credential) {
+        CREDENTIALS_BY_MSISDN.computeIfAbsent(msisdn, key -> new ConcurrentHashMap<>())
+                .put(credential.credentialId.getBase64Url(), credential);
+    }
+
+    private boolean hasCredentials(String msisdn) {
+        Map<String, StoredCredential> credentialMap = CREDENTIALS_BY_MSISDN.get(msisdn);
+        return credentialMap != null && !credentialMap.isEmpty();
+    }
+
+    private StoredCredential findCredential(String msisdn, ByteArray credentialId) {
+        Map<String, StoredCredential> credentialMap = CREDENTIALS_BY_MSISDN.get(msisdn);
+        if (credentialMap == null) {
+            return null;
+        }
+        return credentialMap.get(credentialId.getBase64Url());
+    }
+
     private static class InMemoryCredentialRepository implements CredentialRepository {
         @Override
         public Set<PublicKeyCredentialDescriptor> getCredentialIdsForUsername(String username) {
-            StoredCredential stored = CREDENTIALS_BY_MSISDN.get(username);
-            if (stored == null) {
+            Map<String, StoredCredential> credentials = CREDENTIALS_BY_MSISDN.get(username);
+            if (credentials == null || credentials.isEmpty()) {
                 return Collections.emptySet();
             }
 
             Set<PublicKeyCredentialDescriptor> ids = new HashSet<>();
-            ids.add(PublicKeyCredentialDescriptor.builder()
-                    .id(stored.credentialId)
-                    .transports(Optional.ofNullable(stored.transports).orElse(Collections.emptySet()))
-                    .build());
+            for (StoredCredential stored : credentials.values()) {
+                ids.add(PublicKeyCredentialDescriptor.builder()
+                        .id(stored.credentialId)
+                        .build());
+            }
             return ids;
         }
 
         @Override
         public Optional<ByteArray> getUserHandleForUsername(String username) {
-            StoredCredential stored = CREDENTIALS_BY_MSISDN.get(username);
-            return stored == null ? Optional.empty() : Optional.of(stored.userHandle);
+            Map<String, StoredCredential> credentials = CREDENTIALS_BY_MSISDN.get(username);
+            if (credentials == null || credentials.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(credentials.values().iterator().next().userHandle);
         }
 
         @Override
         public Optional<String> getUsernameForUserHandle(ByteArray userHandle) {
-            for (StoredCredential stored : CREDENTIALS_BY_MSISDN.values()) {
-                if (stored.userHandle.equals(userHandle)) {
-                    return Optional.of(stored.msisdn);
+            for (Map.Entry<String, Map<String, StoredCredential>> entry : CREDENTIALS_BY_MSISDN.entrySet()) {
+                for (StoredCredential stored : entry.getValue().values()) {
+                    if (stored.userHandle.equals(userHandle)) {
+                        return Optional.of(entry.getKey());
+                    }
                 }
             }
             return Optional.empty();
@@ -346,9 +394,11 @@ public class WebAuthnServlet extends HttpServlet {
 
         @Override
         public Optional<RegisteredCredential> lookup(ByteArray credentialId, ByteArray userHandle) {
-            for (StoredCredential stored : CREDENTIALS_BY_MSISDN.values()) {
-                if (stored.credentialId.equals(credentialId) && stored.userHandle.equals(userHandle)) {
-                    return Optional.of(toRegisteredCredential(stored));
+            for (Map<String, StoredCredential> credentialMap : CREDENTIALS_BY_MSISDN.values()) {
+                for (StoredCredential stored : credentialMap.values()) {
+                    if (stored.credentialId.equals(credentialId) && stored.userHandle.equals(userHandle)) {
+                        return Optional.of(toRegisteredCredential(stored));
+                    }
                 }
             }
             return Optional.empty();
@@ -357,9 +407,11 @@ public class WebAuthnServlet extends HttpServlet {
         @Override
         public Set<RegisteredCredential> lookupAll(ByteArray credentialId) {
             Set<RegisteredCredential> matches = new HashSet<>();
-            for (StoredCredential stored : CREDENTIALS_BY_MSISDN.values()) {
-                if (stored.credentialId.equals(credentialId)) {
-                    matches.add(toRegisteredCredential(stored));
+            for (Map<String, StoredCredential> credentialMap : CREDENTIALS_BY_MSISDN.values()) {
+                for (StoredCredential stored : credentialMap.values()) {
+                    if (stored.credentialId.equals(credentialId)) {
+                        matches.add(toRegisteredCredential(stored));
+                    }
                 }
             }
             return matches;
@@ -381,10 +433,10 @@ public class WebAuthnServlet extends HttpServlet {
         private final ByteArray credentialId;
         private final ByteArray publicKeyCose;
         private final long signatureCount;
-        private final Set<com.yubico.webauthn.data.AuthenticatorTransport> transports;
+        private final Set<AuthenticatorTransport> transports;
 
         private StoredCredential(String msisdn, ByteArray userHandle, ByteArray credentialId, ByteArray publicKeyCose, long signatureCount,
-                                 Set<com.yubico.webauthn.data.AuthenticatorTransport> transports) {
+                                 Set<AuthenticatorTransport> transports) {
             this.msisdn = msisdn;
             this.userHandle = userHandle;
             this.credentialId = credentialId;
@@ -398,11 +450,13 @@ public class WebAuthnServlet extends HttpServlet {
         private final String msisdn;
         private final PublicKeyCredentialCreationOptions options;
         private final String origin;
+        private final long createdAt;
 
         private RegistrationState(String msisdn, PublicKeyCredentialCreationOptions options, String origin) {
             this.msisdn = msisdn;
             this.options = options;
             this.origin = origin;
+            this.createdAt = System.currentTimeMillis();
         }
     }
 
@@ -410,11 +464,13 @@ public class WebAuthnServlet extends HttpServlet {
         private final String msisdn;
         private final AssertionRequest request;
         private final String origin;
+        private final long createdAt;
 
         private AssertionState(String msisdn, AssertionRequest request, String origin) {
             this.msisdn = msisdn;
             this.request = request;
             this.origin = origin;
+            this.createdAt = System.currentTimeMillis();
         }
     }
 }

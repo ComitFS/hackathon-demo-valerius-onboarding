@@ -7,7 +7,7 @@ let clientMicStream = null; let openAiRemoteStream = null;
 
 const PUBSUB_SERVICE = 'pubsub.localhost'; // + openfireHost.split(':')[0];
 const SESSION_NODE = 'onboarding_session_alexander_vance';
-const HARDCODED_MSISDN = '+447825589457';
+const HARDCODED_MSISDN = '+447700900077';
 
 const ARIA_SYSTEM_PROMPT = `
 # IDENTITY & AUDIENCE
@@ -343,7 +343,7 @@ async function runSilentVodafoneDiscovery(webauthnAuthenticated = false, overrid
 	
 		clientPreVerifiedMetadata = {
 		  pre_call_authentication: {
-			webauthn_authenticated: true,
+			webauthn_authenticated: webauthnAuthenticated,
 			carrier_sim_verified: true,
 			device_trust_score: "HIGH"
 		  },
