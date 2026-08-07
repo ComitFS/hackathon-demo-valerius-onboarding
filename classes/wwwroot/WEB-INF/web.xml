@@ -34,4 +34,14 @@
         <servlet-name>vodaServlet</servlet-name>
         <url-pattern>/voda-retrieve</url-pattern>
     </servlet-mapping> 	
+
+	<servlet>
+		<servlet-name>webAuthnServlet</servlet-name>
+		<servlet-class>com.valerius.wealth.openfire.WebAuthnServlet</servlet-class>
+	</servlet>		
+
+    <servlet-mapping>
+        <servlet-name>webAuthnServlet</servlet-name>
+        <url-pattern>/webauthn/*</url-pattern>
+    </servlet-mapping> 	
 </web-app>
