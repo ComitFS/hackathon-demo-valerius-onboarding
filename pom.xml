@@ -68,6 +68,11 @@
                 </exclusion>
             </exclusions>			
 		</dependency>
+        <dependency>
+            <groupId>com.yubico</groupId>
+            <artifactId>webauthn-server-core</artifactId>
+            <version>2.7.0</version>
+        </dependency>
     </dependencies>
 
     <repositories>

@@ -7,6 +7,7 @@ let clientMicStream = null; let openAiRemoteStream = null;
 
 const PUBSUB_SERVICE = 'pubsub.localhost'; // + openfireHost.split(':')[0];
 const SESSION_NODE = 'onboarding_session_alexander_vance';
+const HARDCODED_MSISDN = '+447825589457';
 
 const ARIA_SYSTEM_PROMPT = `
 # IDENTITY & AUDIENCE
@@ -94,6 +95,185 @@ window.onload = function() {
 	console.debug("⚠️ Window loading detected");	
 };
 
+
+
+function updateIdentityStatus(message, color = '#F59E0B') {
+    const banner = document.getElementById('identityStatus');
+    const statusDot = document.querySelector('.status-dot');
+    if (banner) banner.innerText = message;
+    if (statusDot) statusDot.style.background = color;
+}
+
+async function establishSecureSession() {
+    updateIdentityStatus('Verifying passkey...', '#F59E0B');
+
+    try {
+        const authenticated = await authenticateWithPasskey(HARDCODED_MSISDN);
+        if (!authenticated) {
+            updateIdentityStatus('Passkey authentication failed. Secure session blocked.', '#EF4444');
+            return;
+        }
+
+        updateIdentityStatus('Passkey verified. Starting network binding...', '#10B981');
+        await runSilentVodafoneDiscovery(true, HARDCODED_MSISDN);
+    } catch (error) {
+        console.error('Passkey flow failed', error);
+        updateIdentityStatus('Passkey unavailable. Use HTTPS and a supported authenticator.', '#EF4444');
+    }
+}
+
+async function authenticateWithPasskey(msisdn) {
+    if (!window.PublicKeyCredential || !window.isSecureContext) {
+        throw new Error('WebAuthn unavailable or insecure context');
+    }
+
+    let assertionStart = await postJson('/webauthn/authenticate/start', { msisdn });
+
+    if (assertionStart.requiresRegistration) {
+        await registerPasskey(msisdn);
+        assertionStart = await postJson('/webauthn/authenticate/start', { msisdn });
+    }
+
+    if (!assertionStart.publicKey || !assertionStart.requestId) {
+        return false;
+    }
+
+    const requestOptions = parseRequestOptions(assertionStart.publicKey);
+    const credential = await navigator.credentials.get({ publicKey: requestOptions });
+
+    const assertionFinish = await postJson('/webauthn/authenticate/finish', {
+        requestId: assertionStart.requestId,
+        credential: credentialToJson(credential)
+    });
+
+    return !!assertionFinish.authenticated;
+}
+
+async function registerPasskey(msisdn) {
+    const registrationStart = await postJson('/webauthn/register/start', { msisdn, displayName: msisdn });
+
+    if (!registrationStart.publicKey || !registrationStart.requestId) {
+        throw new Error('Registration initialization failed');
+    }
+
+    const creationOptions = parseCreationOptions(registrationStart.publicKey);
+    const credential = await navigator.credentials.create({ publicKey: creationOptions });
+
+    const registrationFinish = await postJson('/webauthn/register/finish', {
+        requestId: registrationStart.requestId,
+        credential: credentialToJson(credential)
+    });
+
+    if (!registrationFinish.registered) {
+        throw new Error('Registration failed');
+    }
+}
+
+function parseCreationOptions(optionsJson) {
+    if (window.PublicKeyCredential.parseCreationOptionsFromJSON) {
+        return window.PublicKeyCredential.parseCreationOptionsFromJSON(optionsJson);
+    }
+
+    const options = clone(optionsJson);
+    options.challenge = base64UrlToBuffer(options.challenge);
+    options.user.id = base64UrlToBuffer(options.user.id);
+    options.excludeCredentials = (options.excludeCredentials || []).map((cred) => ({
+        ...cred,
+        id: base64UrlToBuffer(cred.id)
+    }));
+    return options;
+}
+
+function parseRequestOptions(optionsJson) {
+    if (window.PublicKeyCredential.parseRequestOptionsFromJSON) {
+        return window.PublicKeyCredential.parseRequestOptionsFromJSON(optionsJson);
+    }
+
+    const options = clone(optionsJson);
+    options.challenge = base64UrlToBuffer(options.challenge);
+    options.allowCredentials = (options.allowCredentials || []).map((cred) => ({
+        ...cred,
+        id: base64UrlToBuffer(cred.id)
+    }));
+    return options;
+}
+
+function credentialToJson(credential) {
+    if (credential && typeof credential.toJSON === 'function') {
+        return credential.toJSON();
+    }
+
+    const response = credential.response;
+    const json = {
+        id: credential.id,
+        rawId: bufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+            clientDataJSON: bufferToBase64Url(response.clientDataJSON)
+        }
+    };
+
+    if (response.attestationObject) {
+        json.response.attestationObject = bufferToBase64Url(response.attestationObject);
+    }
+
+    if (response.authenticatorData) {
+        json.response.authenticatorData = bufferToBase64Url(response.authenticatorData);
+    }
+
+    if (response.signature) {
+        json.response.signature = bufferToBase64Url(response.signature);
+    }
+
+    if (response.userHandle) {
+        json.response.userHandle = bufferToBase64Url(response.userHandle);
+    }
+
+    return json;
+}
+
+function bufferToBase64Url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let str = '';
+    for (const byte of bytes) str += String.fromCharCode(byte);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlToBuffer(value) {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const str = atob(padded);
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+    return bytes.buffer;
+}
+
+function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+async function postJson(path, payload) {
+    const response = await fetch(`${window.location.protocol}//${openfireHost}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    let body = {};
+    try {
+        body = await response.json();
+    } catch (error) {
+        body = {};
+    }
+
+    if (!response.ok) {
+        const message = body.error || `Request failed (${response.status})`;
+        throw new Error(message);
+    }
+
+    return body;
+}
+
 function closeConnections() {
 	if (xmppConnection) xmppConnection.disconnect();
 
@@ -140,11 +320,9 @@ function closeConnections() {
 	}	
 }
 
-async function runSilentVodafoneDiscovery() {
+async function runSilentVodafoneDiscovery(webauthnAuthenticated = false, overrideMsisdn = HARDCODED_MSISDN) {
 	console.debug("runSilentVodafoneDiscovery");
 	
-    const banner = document.getElementById('identityStatus');
-	const statusDot = document.querySelector(".status-dot");
     try {
 		/*
         // 1. Fetch cellular hardware authentication validation values
@@ -161,7 +339,7 @@ async function runSilentVodafoneDiscovery() {
         let msisdn = verifyRes.phoneNumber || "+44 7700 900077";
 		*/
 		
-		let msisdn = "+447825589457";
+		let msisdn = overrideMsisdn || HARDCODED_MSISDN;
 	
 		clientPreVerifiedMetadata = {
 		  pre_call_authentication: {
@@ -176,13 +354,12 @@ async function runSilentVodafoneDiscovery() {
 			national_insurance_number: null     // To be gathered during the call
 		  }
 		};		
-        banner.innerHTML = `Vodafone Network Binding Authenticated: ${msisdn}`;
-		statusDot.style.background = "#10B981";
+        updateIdentityStatus(`Vodafone Network Binding Authenticated: ${msisdn}`, '#10B981');
         
         connectToOpenfireXmpp(msisdn);
     } catch (e) {
-        banner.innerText = "Fallback triggered. Activating encryption layer pipeline hooks...";
-        connectToOpenfireXmpp("+447825589457");
+        updateIdentityStatus('Fallback triggered. Activating encryption layer pipeline hooks...', '#EF4444');
+        connectToOpenfireXmpp(HARDCODED_MSISDN);
     }
 }
 
