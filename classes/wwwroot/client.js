@@ -344,8 +344,8 @@ async function runSilentVodafoneDiscovery(webauthnAuthenticated = false, overrid
 		clientPreVerifiedMetadata = {
 		  pre_call_authentication: {
 			webauthn_authenticated: webauthnAuthenticated,
-			carrier_sim_verified: true,
-			device_trust_score: "HIGH"
+			carrier_sim_verified: false,
+			device_trust_score: "MEDIUM"
 		  },
 		  biographical_data: {
 			full_legal_name: "Dele Olajide",
