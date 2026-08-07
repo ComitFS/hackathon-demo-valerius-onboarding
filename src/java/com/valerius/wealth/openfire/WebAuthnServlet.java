@@ -40,13 +40,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class WebAuthnServlet extends HttpServlet {
     private static final Logger Log = LoggerFactory.getLogger(WebAuthnServlet.class);
 
     private static final long STATE_TTL_MILLIS = 2 * 60 * 1000L;
     private static final long CLEANUP_INTERVAL_MILLIS = 15 * 1000L;
-    private static volatile long lastCleanupAt = 0L;
+    private static final AtomicLong lastCleanupAt = new AtomicLong(0L);
 
     private static final Map<String, Map<String, StoredCredential>> CREDENTIALS_BY_MSISDN = new ConcurrentHashMap<>();
     private static final Map<String, ByteArray> USER_HANDLES_BY_MSISDN = new ConcurrentHashMap<>();
@@ -346,10 +347,13 @@ public class WebAuthnServlet extends HttpServlet {
 
     private void cleanupExpiredStates() {
         long now = System.currentTimeMillis();
-        if ((now - lastCleanupAt) < CLEANUP_INTERVAL_MILLIS) {
+        long previous = lastCleanupAt.get();
+        if ((now - previous) < CLEANUP_INTERVAL_MILLIS) {
             return;
         }
-        lastCleanupAt = now;
+        if (!lastCleanupAt.compareAndSet(previous, now)) {
+            return;
+        }
         REGISTRATION_STATES.entrySet().removeIf(entry -> (now - entry.getValue().createdAt) > STATE_TTL_MILLIS);
         ASSERTION_STATES.entrySet().removeIf(entry -> (now - entry.getValue().createdAt) > STATE_TTL_MILLIS);
     }
