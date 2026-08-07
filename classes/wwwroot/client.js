@@ -13,15 +13,20 @@ const ARIA_SYSTEM_PROMPT = `
 You are Aria, an elite Virtual Digital Financial Adviser conducting a frictionless, JMLSG-aligned KYC onboarding conversation for a High-Net-Worth (HNW) UK client.
 
 # OPERATIONAL CONTEXT (PRE-VERIFIED CLIENT)
-- Crucial: Before the call started, the client was cryptographically authenticated via WebAuthN and network-verified via Mobile Carrier APIs.
-- You already have their verified Legal Name, Mobile Number, and Device Trust Token. 
-- DO NOT ask the client to state or prove their name or phone number. Address them confidently by name.
+- CRUCIAL: The client has been verified via WebAuthN biometrics and mobile carrier hardware verification. 
+- Their Name and Address have already been matched against official UK Credit Reference Agency files.
+- DO NOT ask the client to upload or scan a passport, driving licence, or utility bill. 
+- Treat their identity as verified. Your audio stream should simply confirm these details politely.
 
 # OPERATIONAL PROTOCOL (DUAL STREAM)
 1. AUDIO STREAM: Speak with an empathetic, ultra-polished private banking persona. Keep spoken responses under 2 sentences. Focus heavily on conversational elegance.
 2. STRUCTURED OUTPUT: Progressively populate and update the underlying KYC data structure via the 'submit_kyc_data' tool on every turn.
 
+# CONVERSATIONAL FLOW (PROACTIVE DRIVER)
+- DO NOT ask generic questions like "How can I help you today?". You are here for a specific mission: UK KYC Onboarding.
+
 # CONVERSATIONAL FLOW
+- Drive the conversation proactively. Greet the client warmly by name, confirm their active secure connection, and immediately ask them to verify if the address in your records is correct.
 - Phase 1: Premium Welcome & Address Confirmation. Greet by name. Confirm UK residential address.
 - Phase 2: Wealth Profile. Gather net worth estimations and primary Source of Wealth (SoW).
 - Phase 3: Statutory Compliance. Capture National Insurance Number (NINO) and screen for PEP status.
@@ -235,42 +240,42 @@ async function initOpenAiRealtimeConnection() {
 
 		// A. Configure the Session Environment
 		const sessionUpdateEvent = {
-		type: "session.update",
-		session: {
-		  modalities: ["text", "audio"],
-		  instructions: ARIA_SYSTEM_PROMPT,
-		  voice: "marin",
-		  tools: [KYC_SCHEMA_TOOL],
-		  tool_choice: "auto",
-		  turn_detection: { type: "server_vad" }
-		}
+			type: "session.update",
+			session: {
+			  modalities: ["text", "audio"],
+			  instructions: ARIA_SYSTEM_PROMPT,
+			  voice: "marin",
+			  tools: [KYC_SCHEMA_TOOL],
+			  tool_choice: "auto",
+			  turn_detection: { type: "server_vad" }
+			}
 		};
 		dataChannel.send(JSON.stringify(sessionUpdateEvent));
 
 		// B. Inject the Pre-Verified Metadata into the Conversation History
 		const injectStateEvent = {
-		type: "conversation.item.create",
-		item: {
-		  type: "message",
-		  role: "system",
-		  content: [
-			{
-			  type: "input_text",
-			  text: `[SYSTEM METADATA INJECTION] The client has successfully authenticated via WebAuthN and Carrier API before connection. 
-			  Current Client Identity Record: ${JSON.stringify(clientPreVerifiedMetadata)}. 
-			  Immediately generate the initial response welcoming the client by their name and confirming their address.`
+			type: "conversation.item.create",
+			item: {
+			  type: "message",
+			  role: "system",
+			  content: [
+				{
+				  type: "input_text",
+				  text: `[SYSTEM METADATA INJECTION] The client has successfully authenticated via WebAuthN and Carrier API before connection. 
+				  Current Client Identity Record: ${JSON.stringify(clientPreVerifiedMetadata)}. 
+				  Immediately generate the initial response welcoming the client by their name and confirming their address.`
+				}
+			  ]
 			}
-		  ]
-		}
 		};
 		dataChannel.send(JSON.stringify(injectStateEvent));
 
 		// C. Force Aria to evaluate the injected state and verbally open the call
 		const triggerResponseEvent = {
-		type: "response.create",
-		response: {
-		  instructions: "Greet Dele Olajide warmly, reference the secure biometric connection, and verify if 151, Pike Road, Hoo is still his current residential address."
-		}
+			type: "response.create",
+			response: {
+			  instructions: "Greet Dele Olajide warmly, reference the secure biometric connection, and verify if 151, Pike Road, Hoo is still his current residential address. After a successful confirmation, proceed with KYC onboarding."
+			}
 		};
 		dataChannel.send(JSON.stringify(triggerResponseEvent));
 	};	
@@ -325,18 +330,20 @@ async function initOpenAiRealtimeConnection() {
 	const EPHEMERAL_KEY = data.value;	
 	console.debug("initOpenAiRealtimeConnection - EPHEMERAL_KEY", data);	
 	
-	const sdpReq = await fetch("https://api.openai.com/v1/realtime/calls", {
-	  method: "POST",
-	  body: offer.sdp,
-	  headers: {
-		Authorization: `Bearer ${EPHEMERAL_KEY}`,
-		"Content-Type": "application/sdp",
-	  },
-	});	
-	
-	const answerSdp = await sdpReq.text();	
-	console.debug("ANSWER SDP", answerSdp);	
-	await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+	if (tokenResponse.ok) {
+		const sdpReq = await fetch("https://api.openai.com/v1/realtime/calls", {
+		  method: "POST",
+		  body: offer.sdp,
+		  headers: {
+			Authorization: `Bearer ${EPHEMERAL_KEY}`,
+			"Content-Type": "application/sdp",
+		  },
+		});	
+		
+		const answerSdp = await sdpReq.text();	
+		console.debug("ANSWER SDP", answerSdp);	
+		await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });		
+	}
 }
 
 function broadcastPayload(data) {
