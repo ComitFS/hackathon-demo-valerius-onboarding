@@ -399,7 +399,7 @@ function connectToOpenfireXmpp(msisdn) {
     xmppConnection.connect("localhost", null, (status) => {
         if (status === Strophe.Status.CONNECTED) {
             xmppConnection.send($pres());
-			dialHumanFaPstn("+442071006525");		
+			initOpenAiRealtimeConnection();			
             saveNumberToSessionContext(msisdn);
             broadcastPayload({ type: "FORM_UPDATE", data: { formPhone: msisdn } });			
         }
@@ -422,30 +422,29 @@ async function dialHumanFaPstn(targetNumber) {
     let acsReq = await fetch(`${window.location.protocol}//${openfireHost}/acs-token`);
     let acsRes = await acsReq.json();
     
-	/*
     let ctx = new (window.AudioContext || window.webkitAudioContext)();
     let mSrc = ctx.createMediaStreamSource(clientMicStream);
     let oSrc = ctx.createMediaStreamSource(openAiRemoteStream);
     let dest = ctx.createMediaStreamDestination();
+	
+    let acsTrack = dest.stream.getAudioTracks()[0];
+    let acsStream = new ACS.LocalAudioStream(acsTrack);	
     
     mSrc.connect(dest); oSrc.connect(dest); oSrc.connect(ctx.destination); // Route stream outputs cleanly
-	*/
 	
     const callClient = new ACS.CallClient();
     const cred = new ACS.AzureCommunicationTokenCredential(acsRes.token);
     agent = await callClient.createCallAgent(cred);
-	agentCall = agent.startCall([{ phoneNumber: targetNumber}],  { alternateCallerId: { phoneNumber: "+441908067713" }, muted: false });
+	agentCall = agent.startCall([{ phoneNumber: targetNumber}],  {audioOptions: { localAudioStreams: [acsStream] }, alternateCallerId: { phoneNumber: "+441908067713" }, muted: false });
 
-	/*
-    let acsTrack = dest.stream.getAudioTracks()[0];
-    let acsStream = new ACS.LocalAudioStream(acsTrack);    
-    agent.startCall([{ phoneNumber: targetNumber }], { audioOptions: { localAudioStreams: [acsStream] } });
-	*/
-	
-    document.getElementById('humanState').innerText = "Connected via PSTN";
-    document.getElementById('humanAvatar').classList.add('active');
-	
-	// initOpenAiRealtimeConnection();
+	agentCall.on('stateChanged', async () => {
+		console.debug("agentCall state", agentCall.state, agentCall);
+		
+		if (agentCall.state == "Connected") {
+			document.getElementById('humanState').innerText = "Connected via PSTN";
+			document.getElementById('humanAvatar').classList.add('active');
+		}
+	})
 }
 
 async function initOpenAiRealtimeConnection() {
@@ -465,6 +464,8 @@ async function initOpenAiRealtimeConnection() {
         document.getElementById('aiState').innerText = 'Speaking...';
         document.getElementById('aiAvatar').classList.add('active');
 		audioElement.srcObject = e.streams[0];
+		
+		dialHumanFaPstn("+442071006525");				
     };
 
     clientMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
