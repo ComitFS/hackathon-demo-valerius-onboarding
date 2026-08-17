@@ -27,7 +27,7 @@ import java.util.List;
 public class OpenAISessionServlet extends HttpServlet {
     private static final Logger Log = LoggerFactory.getLogger(OpenAISessionServlet.class);	
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private static final String apiKey = org.jivesoftware.util.JiveGlobals.getProperty("valerius.openai.apiKey", "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");	
+    private static final String apiKey = org.jivesoftware.util.JiveGlobals.getProperty("valerius.openai.apiKey");	
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {        

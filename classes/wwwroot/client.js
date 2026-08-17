@@ -303,7 +303,7 @@ async function postJson(path, payload) {
 function closeConnections() {
 	if (xmppConnection) xmppConnection.disconnect();
 	
-	if (agentCall) agentCall.hangup();
+	if (agentCall) agentCall.hangUp();
 
 	// A. Stop all local microphone / camera media tracks immediately
 	if (clientMicStream) {
@@ -427,8 +427,7 @@ async function dialHumanFaPstn(targetNumber) {
     let oSrc = ctx.createMediaStreamSource(openAiRemoteStream);
     let dest = ctx.createMediaStreamDestination();
 	
-    let acsTrack = dest.stream.getAudioTracks()[0];
-    let acsStream = new ACS.LocalAudioStream(acsTrack);	
+    let acsStream = new ACS.LocalAudioStream(dest.stream);	
     
     mSrc.connect(dest); oSrc.connect(dest); oSrc.connect(ctx.destination); // Route stream outputs cleanly
 	

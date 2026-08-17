@@ -19,7 +19,7 @@ public class VodaRetrieveServlet extends HttpServlet {
 
         String requestBody = new String(req.getInputStream().readAllBytes());
         String operatorToken = extractJsonValue(requestBody, "token");
-        String appAccessToken = org.jivesoftware.util.JiveGlobals.getProperty("valerius.vodafone.gatewaySecret", "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");
+        String appAccessToken = org.jivesoftware.util.JiveGlobals.getProperty("valerius.vodafone.gatewaySecret");
 
         HttpRequest gatewayRequest = HttpRequest.newBuilder()
                 .uri(URI.create("https://vodafone.com"))

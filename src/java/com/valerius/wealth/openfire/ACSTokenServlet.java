@@ -16,7 +16,7 @@ public class ACSTokenServlet extends HttpServlet {
 
     @Override
     public void init() {
-		String connectionString = org.jivesoftware.util.JiveGlobals.getProperty("valerius.acs.connectionString", "endpoint=https://cas-companion.uk.communication.azure.com/;accesskey=DoiGxak8Rf11t0sfNBOMesw6My3SH9Zvwu5dpg8lw7jHVzO7bM5QJQQJ99AGACULyCpMhHOyAAAAAZCS7Krl");
+		String connectionString = org.jivesoftware.util.JiveGlobals.getProperty("valerius.acs.connectionString");
 
         if (connectionString != null && !connectionString.isEmpty()) {
             this.clientEngine = new CommunicationIdentityClientBuilder().connectionString(connectionString).buildClient();

@@ -206,7 +206,7 @@ public class OpenAIOnboardingPlugin implements Plugin, ProcessListener {
 				if (OSUtils.IS_WINDOWS64) 	ngrokName = "ngrok.exe";									
 						
 				final String ngrok = path + File.separator + ngrokName;	
-				String token = JiveGlobals.getProperty("casvoice.ngrok.token", "1ui9nGp4BP0hiz1uqSEzx0HotLg_7QzTVWVrBbJmeR3fczAgS");
+				String token = JiveGlobals.getProperty("casvoice.ngrok.token");
 				Spawn.startProcess(ngrok + " authtoken " + token, new File(path), this);
 				
 				String cmdLine = ngrok + " http " + JiveGlobals.getProperty("httpbind.port.plain", "7070") + " --url " + JiveGlobals.getProperty("casvoice.ngrok.url", "https://certain-sole-rational.ngrok-free.app");			
